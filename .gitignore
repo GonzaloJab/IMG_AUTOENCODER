@@ -1,7 +1,10 @@
 # IMAGES AND RESULTS
 localization/*
+!localization/README.md
 test_imgs/*
+!test_imgs/README.md
 checkpoints/*
+!checkpoints/README.md
 
 # PYTHON
 __pycache__/
