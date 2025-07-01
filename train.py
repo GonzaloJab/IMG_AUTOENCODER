@@ -2,7 +2,8 @@ import os
 import argparse
 from PIL import Image
 
-from model import Autoencoder
+# from model import Autoencoder
+from model_v2 import Autoencoder
 
 import torch
 import torch.optim as optim
@@ -66,9 +67,40 @@ def train(args):
     # Instantiate model, optimizer, and send model to device
     model = Autoencoder().to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+    
+    # Load checkpoint if specified
+    start_epoch = 1
+    if args.resume_from:
+        if os.path.exists(args.resume_from):
+            print(f"Loading checkpoint from: {args.resume_from}")
+            checkpoint = torch.load(args.resume_from, map_location=device)
+            
+            # Check if checkpoint is in new format (dict with keys) or old format (state_dict only)
+            if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+                # New format: full checkpoint with optimizer state
+                model.load_state_dict(checkpoint['model_state_dict'])
+                optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+                start_epoch = checkpoint['epoch'] + 1
+                print(f"Resuming training from epoch {start_epoch} (loss: {checkpoint['loss']:.4f})")
+            else:
+                # Old format: just model state dict (OrderedDict)
+                model.load_state_dict(checkpoint)
+                
+                # Try to extract epoch number from filename for logging purposes
+                filename = os.path.basename(args.resume_from)
+                if 'epoch_' in filename:
+                    try:
+                        start_epoch = int(filename.split('epoch_')[1].split('.')[0]) + 1
+                        print(f"Resuming training from epoch {start_epoch} (old checkpoint format)")
+                    except:
+                        print("Could not determine epoch number from filename, starting from epoch 1")
+                else:
+                    print("Resuming training from epoch 1 (old checkpoint format)")
+        else:
+            print(f"Warning: Checkpoint file {args.resume_from} not found. Starting training from scratch.")
 
     # Training Loop
-    for epoch in range(1, args.epochs + 1):
+    for epoch in range(start_epoch, start_epoch + args.epochs):
         model.train()
         running_loss = 0.0
 
@@ -92,17 +124,25 @@ def train(args):
         if epoch % args.save_interval == 0 or epoch == args.epochs:
             checkpoint_path = os.path.join(args.checkpoint_dir, f"autoencoder_epoch_{epoch}.pth")
             os.makedirs(args.checkpoint_dir, exist_ok=True)
-            torch.save(model.state_dict(), checkpoint_path)
+            
+            # Save both model state dict and optimizer state dict
+            checkpoint = {
+                'epoch': epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': avg_loss,
+            }
+            torch.save(checkpoint, checkpoint_path)
             tqdm.write(f"Model checkpoint saved to {checkpoint_path}")
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train Autoencoder for Anomaly Detection")
-    parser.add_argument('--data_dir', type=str, default=r'E:\12_AnomalyDetection\NO_DEF', required=True,
+    parser.add_argument('--data_dir', type=str, default=r'E:\0_DATASETS\NONE',
                         help="Path to the directory containing training images")
     
     parser.add_argument('--checkpoint_dir', type=str, 
-                        default='./checkpoints',
+                        default='./checkpoints_v2',
                         help="Directory where model checkpoints will be saved")
     
     parser.add_argument('--batch_size', type=int, 
@@ -129,5 +169,12 @@ if __name__ == '__main__':
                         default=2,
                         help="How many epochs to wait before saving a checkpoint")
     
+    parser.add_argument('--resume_from', type=str, 
+                        default=None,
+                        help="Path to checkpoint file to resume training from")
+      
+    #parse args
     args = parser.parse_args()
+    #args.resume_from = "./checkpoints/autoencoder_epoch_38.pth"
+    
     train(args)

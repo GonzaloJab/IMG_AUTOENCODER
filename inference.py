@@ -44,8 +44,9 @@ def process_image(model, device, image_path, transform):
     # Upscale the diff image to the original image size
     orig_h, orig_w = original_full.shape
     diff_upscaled = cv2.resize(diff, (orig_w, orig_h), interpolation=cv2.INTER_LINEAR)
-    
-    return original_full, reconstructed_img, diff_upscaled
+    reconstructed_img_upscaled = cv2.resize(reconstructed_img, (orig_w, orig_h), interpolation=cv2.INTER_LINEAR)
+
+    return original_full, reconstructed_img_upscaled, diff_upscaled
 
 def create_anomaly_overlay(original_img, diff, alpha=0.5):
     """
@@ -64,19 +65,23 @@ def create_anomaly_overlay(original_img, diff, alpha=0.5):
     blended = (1 - alpha) * original_rgb + alpha * overlay
     return blended, anomaly_mask
 
-def save_compared(original_img, diff, img_path, args):
+def save_compared(original_img, reconstructed_img, diff, img_path, args):
     """
     Create a comparison plot of the original image and the diff image,
     and save it as a PNG file.
     """
-    fig, axs = plt.subplots(2, figsize=(20, 10))
+    fig, axs = plt.subplots(3, figsize=(20, 10))
     axs[0].imshow(original_img, cmap='gray')
     axs[0].set_title("Original Image")
     axs[0].axis("off")
 
-    im = axs[1].imshow(diff, cmap='hot')
-    axs[1].set_title("Absolute Difference")
+    im = axs[1].imshow(reconstructed_img, cmap='gray')
+    axs[1].set_title("Reconstructed Image")
     axs[1].axis("off")
+    
+    im = axs[2].imshow(diff, cmap='hot')
+    axs[2].set_title("Absolute Difference")
+    axs[2].axis("off")
     # Optionally, add a colorbar:
     # fig.colorbar(im, ax=axs[1])
 
@@ -91,13 +96,26 @@ def save_compared(original_img, diff, img_path, args):
 
 def main(args):
     # Use CPU for inference (or uncomment the next line for GPU if available)
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = 'cpu'
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = 'cpu'
     print(f"Running inference on device: {device}")
 
     # Load the trained model.
     model = Autoencoder().to(device)
-    model.load_state_dict(torch.load(args.checkpoint_path, map_location=device))
+    
+    # Load checkpoint with backward compatibility
+    checkpoint = torch.load(args.checkpoint_path, map_location=device)
+    
+    # Check if checkpoint is in new format (dict with keys) or old format (state_dict only)
+    if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+        # New format: full checkpoint with optimizer state
+        model.load_state_dict(checkpoint['model_state_dict'])
+        print(f"Loaded checkpoint from epoch {checkpoint['epoch']} with loss: {checkpoint['loss']:.4f}")
+    else:
+        # Old format: just model state dict (OrderedDict)
+        model.load_state_dict(checkpoint)
+        print("Loaded checkpoint (old format)")
+    
     model.eval()
 
     # Define the transform for model input: resize to (256, 2048), convert to tensor, and normalize to [-1, 1]
@@ -130,7 +148,7 @@ def main(args):
         base_name = os.path.splitext(os.path.basename(img_path))[0]
         if args.output_path:
             if args.save_type == 'compared':
-                save_compared(original_img, diff, img_path, args)
+                save_compared(original_img,reconstructed_img, diff, img_path, args)
             else:
                 # Alternatively, save the diff image using OpenCV with a colormap.
                 # Normalize diff to [0, 255] and apply a "hot" colormap.
@@ -161,7 +179,7 @@ if __name__ == "__main__":
 
     # Manually override some arguments for testing
     args.image_path = r"test_imgs"
-    args.checkpoint_path = r"checkpoints\autoencoder_epoch_20.pth"
+    args.checkpoint_path = r"E:\12_AnomalyDetection\0_AUTOENCODER\checkpoints\autoencoder_epoch_46.pth"
     args.output_path = r"localization"
     args.save_type = 'compared'
 

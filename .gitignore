@@ -5,6 +5,8 @@ test_imgs/*
 !test_imgs/README.md
 checkpoints/*
 !checkpoints/README.md
+checkpoints_v2/*
+!checkpoints_v2/README.md
 
 # PYTHON
 __pycache__/
