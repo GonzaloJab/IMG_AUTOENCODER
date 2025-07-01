@@ -7,6 +7,7 @@ from model_v2 import Autoencoder
 
 import torch
 import torch.optim as optim
+import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 import torchvision.transforms as transforms
 from pytorch_msssim import ssim

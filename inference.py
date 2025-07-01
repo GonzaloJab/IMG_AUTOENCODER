@@ -9,7 +9,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 
-from model import Autoencoder  # Ensure your model.py defines Autoencoder
+# from model import Autoencoder  # Ensure your model.py defines Autoencoder
+from model_v2 import Autoencoder
 
 def denormalize(t):
     """Denormalizes tensor from [-1, 1] to [0, 1]."""
@@ -179,7 +180,7 @@ if __name__ == "__main__":
 
     # Manually override some arguments for testing
     args.image_path = r"test_imgs"
-    args.checkpoint_path = r"E:\12_AnomalyDetection\0_AUTOENCODER\checkpoints\autoencoder_epoch_46.pth"
+    args.checkpoint_path = r"E:\12_AnomalyDetection\0_AUTOENCODER\checkpoints_v2\autoencoder_epoch_6.pth"
     args.output_path = r"localization"
     args.save_type = 'compared'
 
