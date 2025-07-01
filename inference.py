@@ -39,7 +39,7 @@ def process_image(model, device, image_path, transform):
     reconstructed_img = denormalize(reconstructed_tensor.cpu()[0, 0]).numpy()
     
     # Compute the absolute difference at the resized resolution
-    diff = np.abs((original_resized - reconstructed_img)**2)
+    diff = np.abs((original_resized - reconstructed_img)*2)
     
     # Upscale the diff image to the original image size
     orig_h, orig_w = original_full.shape
