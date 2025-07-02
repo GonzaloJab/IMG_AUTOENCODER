@@ -7,6 +7,8 @@ checkpoints/*
 !checkpoints/README.md
 checkpoints_v2/*
 !checkpoints_v2/README.md
+checkpoints_mod_loss/*
+!checkpoints_mod_loss/README.md
 
 # PYTHON
 __pycache__/

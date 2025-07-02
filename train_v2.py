@@ -3,7 +3,7 @@ import argparse
 from PIL import Image
 
 # from model import Autoencoder
-from model_v2 import Autoencoder
+from model import Autoencoder
 
 import torch
 import torch.optim as optim
@@ -115,15 +115,28 @@ def train(args):
             inputs = inputs.to(device)
             optimizer.zero_grad()
             outputs = model(inputs)
-            loss = SSIMLoss(outputs, inputs)
+            # loss = SSIMLoss(outputs, inputs)
+            
+            # Calculate losses
+            ssim_loss = SSIMLoss(outputs, inputs)
+            tv_loss = total_variation(outputs)
+            
+            # Combine losses with weight for total variation
+            loss = ssim_loss + args.tv_weight * tv_loss
+            
+            
             loss.backward()
             optimizer.step()
 
             running_loss += loss.item()
-            progress_bar.set_postfix(loss=f"{loss.item():.4f}")
+            progress_bar.set_postfix(
+                ssim_loss=f"{ssim_loss.item():.4f}", 
+                tv_loss=f"{tv_loss.item():.4f}",
+                total_loss=f"{loss.item():.4f}"
+            )
 
         avg_loss = running_loss / len(dataloader)
-        tqdm.write(f"Epoch [{epoch}/{args.epochs}] Average Loss: {avg_loss:.4f}")
+        tqdm.write(f"Epoch [{epoch}/{args.epochs}] Average Loss: {avg_loss:.4f} (TV weight: {args.tv_weight})")
 
         # Save model checkpoint every few epochs or at the end
         if epoch % args.save_interval == 0 or epoch == args.epochs:
@@ -136,6 +149,8 @@ def train(args):
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
                 'loss': avg_loss,
+                'tv_weight': args.tv_weight,
+
             }
             torch.save(checkpoint, checkpoint_path)
             tqdm.write(f"Model checkpoint saved to {checkpoint_path}")
@@ -147,7 +162,7 @@ if __name__ == '__main__':
                         help="Path to the directory containing training images")
     
     parser.add_argument('--checkpoint_dir', type=str, 
-                        default='./checkpoints_v2',
+                        default='./checkpoints_mod_loss',
                         help="Directory where model checkpoints will be saved")
     
     parser.add_argument('--batch_size', type=int, 
@@ -159,7 +174,7 @@ if __name__ == '__main__':
                         help="Number of epochs to train")
     
     parser.add_argument('--learning_rate', type=float, 
-                        default=0.0005,
+                        default=0.0002,
                         help="Learning rate for optimizer")
     
     parser.add_argument('--num_workers', type=int, 
@@ -177,9 +192,13 @@ if __name__ == '__main__':
     parser.add_argument('--resume_from', type=str, 
                         default=None,
                         help="Path to checkpoint file to resume training from")
+    parser.add_argument('--tv_weight', type=float, 
+                        default=0.001,
+                        help="Weight for total variation loss")
+      
       
     #parse args
     args = parser.parse_args()
-    #args.resume_from = "./checkpoints/autoencoder_epoch_38.pth"
+    # args.resume_from = r"checkpoints_mod_loss\autoencoder_epoch_20.pth"
     
     train(args)

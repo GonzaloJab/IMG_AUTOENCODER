@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import cv2
 
 # from model import Autoencoder  # Ensure your model.py defines Autoencoder
-from model_v2 import Autoencoder
+from model import Autoencoder
 
 def denormalize(t):
     """Denormalizes tensor from [-1, 1] to [0, 1]."""
@@ -90,7 +90,8 @@ def save_compared(original_img, reconstructed_img, diff, img_path, args):
 
     # Build the output filename.
     base_name = os.path.splitext(os.path.basename(img_path))[0]
-    output_file = os.path.join(args.output_path, f"{base_name}_overlay.png")
+    output_file = os.path.join(args.output_path,args.test_name,f"{base_name}_{args.test_name}.png")
+    os.makedirs(os.path.join(args.output_path,args.test_name), exist_ok=True)
     plt.savefig(output_file)
     print(f"Saved overlay to {output_file}")
     plt.close(fig)
@@ -174,14 +175,17 @@ if __name__ == "__main__":
                         help="Path to the trained model checkpoint")
     parser.add_argument("--output_path", type=str, default=None,
                         help="Optional: directory to save the output visualizations")
+    parser.add_argument("--test_name", type=str, default=None,
+                        help="Optional: name of the test")
     parser.add_argument("--save_type", type=str, default="compared",
                         help="Type of saving: 'compared' for a side-by-side plot or another option for diff only")
     args = parser.parse_args()
 
     # Manually override some arguments for testing
     args.image_path = r"test_imgs"
-    args.checkpoint_path = r"E:\12_AnomalyDetection\0_AUTOENCODER\checkpoints_v2\autoencoder_epoch_6.pth"
+    args.checkpoint_path = r"E:\12_AnomalyDetection\0_AUTOENCODER\checkpoints_mod_loss\autoencoder_epoch_18.pth"
     args.output_path = r"localization"
+    args.test_name = "AE_mod_loss"
     args.save_type = 'compared'
 
     main(args)
