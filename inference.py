@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import cv2
 
 # from model import Autoencoder  # Ensure your model.py defines Autoencoder
-from model import Autoencoder
+from models import Autoencoder_smooth_upsample
 
 def denormalize(t):
     """Denormalizes tensor from [-1, 1] to [0, 1]."""
@@ -91,6 +91,7 @@ def save_compared(original_img, reconstructed_img, diff, img_path, args):
     # Build the output filename.
     base_name = os.path.splitext(os.path.basename(img_path))[0]
     output_file = os.path.join(args.output_path,args.test_name,f"{base_name}_{args.test_name}.png")
+    #correct the path for windows
     os.makedirs(os.path.join(args.output_path,args.test_name), exist_ok=True)
     plt.savefig(output_file)
     print(f"Saved overlay to {output_file}")
@@ -103,7 +104,7 @@ def main(args):
     print(f"Running inference on device: {device}")
 
     # Load the trained model.
-    model = Autoencoder().to(device)
+    model = Autoencoder_smooth_upsample().to(device)
     
     # Load checkpoint with backward compatibility
     checkpoint = torch.load(args.checkpoint_path, map_location=device)
@@ -157,9 +158,9 @@ def main(args):
                 diff_norm = cv2.normalize(diff, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
                 diff_norm = diff_norm.astype(np.uint8)
                 colored_diff = cv2.applyColorMap(diff_norm, cv2.COLORMAP_HOT)
-                output_file = os.path.join(args.output_path, f"{base_name}.jpg")
+                output_file = os.path.join(args.output_path,args.test_name, f"{base_name}_.jpg")
                 cv2.imwrite(output_file, colored_diff)
-                
+                print(f"Saved diff image to {output_file}")
                 
         else:
             # If no output path is provided, display the result using OpenCV.
@@ -183,9 +184,9 @@ if __name__ == "__main__":
 
     # Manually override some arguments for testing
     args.image_path = r"test_imgs"
-    args.checkpoint_path = r"E:\12_AnomalyDetection\0_AUTOENCODER\checkpoints_mod_loss\autoencoder_epoch_18.pth"
+    args.checkpoint_path = r"./checkpoints/checkpoints_smooth_upsample_RUG-STAINS\autoencoder_epoch_40.pth"
     args.output_path = r"localization"
-    args.test_name = "AE_mod_loss"
-    args.save_type = 'compared'
+    args.test_name = "smooth_upsample_RUG-STAINS"
+    args.save_type = 'single'
 
     main(args)

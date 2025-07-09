@@ -4,6 +4,7 @@ from PIL import Image
 
 # from model import Autoencoder
 from model_v2 import Autoencoder
+from models import Autoencoder_simple, Autoencoder_simple_v2, Autoencoder_smooth_upsample
 
 import torch
 import torch.optim as optim
@@ -69,7 +70,7 @@ def train(args):
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 
     # Instantiate model, optimizer, and send model to device
-    model = Autoencoder().to(device)
+    model = Autoencoder_smooth_upsample().to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
     
     # Load checkpoint if specified
@@ -142,11 +143,11 @@ def train(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Train Autoencoder for Anomaly Detection")
-    parser.add_argument('--data_dir', type=str, default=r'E:\0_DATASETS\NONE',
+    parser.add_argument('--data_dir', type=str, default=r'E:\0_DATASETS\RUG-STAINS',
                         help="Path to the directory containing training images")
     
     parser.add_argument('--checkpoint_dir', type=str, 
-                        default='./checkpoints_v2',
+                        default='./checkpoints/checkpoints_smooth_upsample_RUG-STAINS',
                         help="Directory where model checkpoints will be saved")
     
     parser.add_argument('--batch_size', type=int, 
@@ -158,7 +159,7 @@ if __name__ == '__main__':
                         help="Number of epochs to train")
     
     parser.add_argument('--learning_rate', type=float, 
-                        default=0.0005,
+                        default=0.0001,
                         help="Learning rate for optimizer")
     
     parser.add_argument('--num_workers', type=int, 
@@ -179,6 +180,6 @@ if __name__ == '__main__':
       
     #parse args
     args = parser.parse_args()
-    #args.resume_from = "./checkpoints/autoencoder_epoch_38.pth"
+    args.resume_from = r"./checkpoints/checkpoints_smooth_upsample_RUG-STAINS\autoencoder_epoch_74.pth"
     
     train(args)

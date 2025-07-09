@@ -10,6 +10,8 @@ checkpoints_v2/*
 checkpoints_mod_loss/*
 !checkpoints_mod_loss/README.md
 
+0_DEFECT_LOC_tests/*
+
 # PYTHON
 __pycache__/
 

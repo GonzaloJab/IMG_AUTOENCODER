@@ -63,7 +63,7 @@ def list_checkpoints(checkpoint_dir='./checkpoints'):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="List available checkpoints")
-    parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints',
+    parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints/checkpoints_smooth_upsample_RUG-STAINS',
                         help="Directory containing checkpoint files")
     
     args = parser.parse_args()
