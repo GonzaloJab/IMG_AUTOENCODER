@@ -3,8 +3,8 @@ import argparse
 from PIL import Image
 
 # from model import Autoencoder
-from model_v2 import Autoencoder
-from models import Autoencoder_simple, Autoencoder_simple_v2, Autoencoder_smooth_upsample
+
+from models import Autoencoder_simple, Autoencoder_simple_v2, Autoencoder_smooth_upsample, UNet, UNet_AnomalyDetection, UNet_DetailPreserving, UNet_BackgroundAware
 
 import torch
 import torch.optim as optim
@@ -70,7 +70,7 @@ def train(args):
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 
     # Instantiate model, optimizer, and send model to device
-    model = Autoencoder_smooth_upsample().to(device)
+    model = UNet_BackgroundAware().to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
     
     # Load checkpoint if specified
@@ -147,7 +147,7 @@ if __name__ == '__main__':
                         help="Path to the directory containing training images")
     
     parser.add_argument('--checkpoint_dir', type=str, 
-                        default='./checkpoints/checkpoints_smooth_upsample_RUG-STAINS',
+                        default='./checkpoints/checkpoints_UNet_BackgroundAware_RUG-STAINS',
                         help="Directory where model checkpoints will be saved")
     
     parser.add_argument('--batch_size', type=int, 
@@ -159,7 +159,8 @@ if __name__ == '__main__':
                         help="Number of epochs to train")
     
     parser.add_argument('--learning_rate', type=float, 
-                        default=0.0001,
+                        default=0.0005
+                        ,
                         help="Learning rate for optimizer")
     
     parser.add_argument('--num_workers', type=int, 
@@ -180,6 +181,6 @@ if __name__ == '__main__':
       
     #parse args
     args = parser.parse_args()
-    args.resume_from = r"./checkpoints/checkpoints_smooth_upsample_RUG-STAINS\autoencoder_epoch_74.pth"
+    # args.resume_from = r"./checkpoints/checkpoints_UNet_BackgroundAware_RUG-STAINS\autoencoder_epoch_12.pth"
     
     train(args)

@@ -11,6 +11,9 @@ checkpoints_mod_loss/*
 !checkpoints_mod_loss/README.md
 
 0_DEFECT_LOC_tests/*
+incrust_test/*
+0_anomaly_output/*
+test_imgs_bank/*
 
 # PYTHON
 __pycache__/

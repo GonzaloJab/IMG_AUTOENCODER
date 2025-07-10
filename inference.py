@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import cv2
 
 # from model import Autoencoder  # Ensure your model.py defines Autoencoder
-from models import Autoencoder_smooth_upsample
+from models import Autoencoder_smooth_upsample, UNet
 
 def denormalize(t):
     """Denormalizes tensor from [-1, 1] to [0, 1]."""
