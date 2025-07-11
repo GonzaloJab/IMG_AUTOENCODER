@@ -57,7 +57,12 @@ def denormalize(tensor):
     return (tensor + 1) / 2
 
 
-def detect_anomalies_and_save_results(img_path, model_path, output_path):
+def detect_anomalies_and_save_results(img_path, model_path, output_path, 
+                                    area_thresh=200, merge_kernel_size=(15, 15), 
+                                    p=95, min_spot_area=20, opening_kernel_size=(2, 2), 
+                                    crop_padding=15, th_static=180, use_dynamic_threshold=True,
+                                    x_distance_threshold=100, y_distance_threshold=10, 
+                                    overlap_threshold=0.0):
     """
     Detect anomalies in an image and save results as a single column PNG.
     
@@ -65,6 +70,17 @@ def detect_anomalies_and_save_results(img_path, model_path, output_path):
         img_path: Path to the input image
         model_path: Path to the trained model checkpoint
         output_path: Path to save the output PNG
+        area_thresh: Minimum area threshold for defect detection
+        merge_kernel_size: Kernel size for morphological closing
+        p: Percentile for dynamic threshold calculation
+        min_spot_area: Minimum area for individual spots
+        opening_kernel_size: Kernel size for opening operation
+        crop_padding: Padding around detected regions
+        th_static: Static threshold value (used if use_dynamic_threshold=False)
+        use_dynamic_threshold: Whether to use dynamic threshold based on percentile
+        x_distance_threshold: Distance threshold for merging boxes horizontally
+        y_distance_threshold: Distance threshold for merging boxes vertically
+        overlap_threshold: Overlap threshold for merging boxes
     """
     
     # Load the original image in color
@@ -114,17 +130,11 @@ def detect_anomalies_and_save_results(img_path, model_path, output_path):
     diff_original_size = cv2.resize(diff, (original_shape[1], original_shape[0]), interpolation=cv2.INTER_LINEAR)
     red_channel_original_size = cv2.resize(red_channel, (original_shape[1], original_shape[0]), interpolation=cv2.INTER_LINEAR)
     
-    # Parameters
-    area_thresh = 200
-    merge_kernel_size = (15, 15)
-    p = 95
-    min_spot_area = 20  # Minimum area for individual spots
-    opening_kernel_size = (2, 2)  # Kernel for opening operation to remove small spots
-    crop_padding = 15  # Padding around detected regions
-
-    # e.g. top 1% of red pixels
-    th = np.percentile(red_channel_original_size.flatten(), p)
-    th = 180
+    # Calculate threshold
+    if use_dynamic_threshold:
+        th = np.percentile(red_channel_original_size.flatten(), p)
+    else:
+        th = th_static
 
     # Threshold to create binary mask
     _, mask = cv2.threshold(red_channel_original_size, th, 255, cv2.THRESH_BINARY)
@@ -162,7 +172,9 @@ def detect_anomalies_and_save_results(img_path, model_path, output_path):
         boxes.append((x, y, w, h))
     
     # Merge boxes
-    final_boxes = group_and_merge_boxes(boxes, x_distance_threshold=100, y_distance_threshold=10, overlap_threshold=0.0)
+    final_boxes = group_and_merge_boxes(boxes, x_distance_threshold=x_distance_threshold, 
+                                       y_distance_threshold=y_distance_threshold, 
+                                       overlap_threshold=overlap_threshold)
     
     # Create visualization images
     # 1. Difference image in original size
@@ -171,8 +183,18 @@ def detect_anomalies_and_save_results(img_path, model_path, output_path):
         cv2.COLORMAP_HOT
     )
     
-    # 2. Mask after threshold and cleaning in original size
+    # 2. Mask after threshold and cleaning in original size with detected areas highlighted
     mask_viz = cv2.cvtColor(closed, cv2.COLOR_GRAY2BGR)
+    
+    # Draw boxes on the mask to show detected areas
+    for box in boxes:
+        x, y, w, h = box
+        # Apply padding but don't go out of image bounds
+        x0 = max(x - crop_padding, 0)
+        y0 = max(y - crop_padding, 0)
+        x1 = min(x + w + crop_padding, original_shape[1])
+        y1 = min(y + h + crop_padding, original_shape[0])
+        cv2.rectangle(mask_viz, (x0, y0), (x1, y1), (0, 255, 0), 4)  # Green boxes on mask
     
     # 3. Original image with individual boxes (thicker)
     img_with_boxes = original_img.copy()
@@ -196,17 +218,23 @@ def detect_anomalies_and_save_results(img_path, model_path, output_path):
         y1 = min(y + h + crop_padding, original_shape[0])
         cv2.rectangle(img_with_merged_boxes, (x0, y0), (x1, y1), (0, 0, 255), 4)  # Thicker red boxes
     
+    # Create visualization for opened mask (before closing)
+    mask_opened_viz = cv2.cvtColor(mask_opened, cv2.COLOR_GRAY2BGR)
+    
     # Create single column visualization
     # Get the width of the original image
     img_width = original_shape[1]
     
-    # Create a single column image with all 4 visualizations
-    total_height = original_shape[0] * 4
+    # Create a single column image with all 5 visualizations
+    total_height = original_shape[0] * 5
     combined_img = np.zeros((total_height, img_width, 3), dtype=np.uint8)
     
     # Place images in the combined image
     y_offset = 0
     combined_img[y_offset:y_offset + original_shape[0]] = diff_viz
+    y_offset += original_shape[0]
+    
+    combined_img[y_offset:y_offset + original_shape[0]] = mask_opened_viz
     y_offset += original_shape[0]
     
     combined_img[y_offset:y_offset + original_shape[0]] = mask_viz
@@ -228,7 +256,7 @@ def detect_anomalies_and_save_results(img_path, model_path, output_path):
     return combined_img, boxes, final_boxes
 
 
-def process_folder(input_folder, model_path, output_folder):
+def process_folder(input_folder, model_path, output_folder, **kwargs):
     """
     Process all images in a folder and save anomaly detection results.
     
@@ -236,6 +264,7 @@ def process_folder(input_folder, model_path, output_folder):
         input_folder: Path to folder containing images
         model_path: Path to the trained model checkpoint
         output_folder: Path to save the output PNGs
+        **kwargs: Additional parameters to pass to detect_anomalies_and_save_results
     """
     # Create output folder if it doesn't exist
     os.makedirs(output_folder, exist_ok=True)
@@ -258,10 +287,9 @@ def process_folder(input_folder, model_path, output_folder):
         try:
             print(f"Processing {i}/{len(image_files)}: {img_path.name}")
             combined_img, boxes, final_boxes = detect_anomalies_and_save_results(
-                str(img_path), model_path, output_folder
+                str(img_path), model_path, output_folder, **kwargs
             )
             print(f"  ✓ Detected {len(boxes)} individual regions and {len(final_boxes)} merged regions")
-            cv2.imwrite(f"{output_folder}/{img_path.name}_anomaly_results.png", combined_img)
             print(f"Results saved to: {output_folder}/{img_path.name}_anomaly_results.png")
         except Exception as e:
             print(f"  ✗ Error processing {img_path.name}: {str(e)}")
@@ -278,9 +306,24 @@ if __name__ == "__main__":
     # combined_img, boxes, final_boxes = detect_anomalies_and_save_results(img_path, model_path, output_path)
     
     # Example usage for folder processing
-    input_folder = r"E:\12_AnomalyDetection\0_AUTOENCODER\incrust_test"
+    input_folder = r"E:\12_AnomalyDetection\0_AUTOENCODER\sliver_test"
     model_path = r"E:\12_AnomalyDetection\0_AUTOENCODER\checkpoints/checkpoints_smooth_upsample_RUG-STAINS\autoencoder_epoch_40.pth"
-    output_folder = r"E:\12_AnomalyDetection\0_AUTOENCODER\incrust_test\incrust_result"
+    output_folder = r"E:\12_AnomalyDetection\0_AUTOENCODER\sliver_test\sliver_result"
     
-    # Process all images in the folder
-    process_folder(input_folder, model_path, output_folder)
+    # Example parameters - you can modify these as needed
+    params = {
+        'area_thresh': 200,                    # Minimum area for defect detection
+        'merge_kernel_size': (15, 15),         # Kernel size for morphological closing
+        'p': 95,                               # Percentile for dynamic threshold
+        'min_spot_area': 20,                   # Minimum area for individual spots
+        'opening_kernel_size': (2, 2),         # Kernel size for opening operation
+        'crop_padding': 15,                    # Padding around detected regions
+        'th_static': 180,                      # Static threshold value
+        'use_dynamic_threshold': True,         # Use dynamic threshold based on percentile
+        'x_distance_threshold': 100,           # Distance threshold for merging boxes horizontally
+        'y_distance_threshold': 10,            # Distance threshold for merging boxes vertically
+        'overlap_threshold': 0.0               # Overlap threshold for merging boxes
+    }
+    
+    # Process all images in the folder with custom parameters
+    process_folder(input_folder, model_path, output_folder, **params)
